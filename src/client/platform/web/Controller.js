@@ -1,5 +1,6 @@
 class Controller {
     static init() {}
+    static ready() {}
     static updateLocale() {}
 }
 

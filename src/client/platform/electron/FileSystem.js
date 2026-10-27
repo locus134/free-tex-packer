@@ -1,8 +1,10 @@
 const fs = require('fs');
+const nodePath = require('path');
 const chokidar = require('chokidar');
 const { dialog } = require('electron').remote;
 
 import Controller from 'platform/Controller';
+import Project from 'platform/Project';
 import I18 from '../../utils/I18';
 import Base64ImagesLoader from '../../utils/Base64ImagesLoader';
 import { Observer, GLOBAL_EVENT } from '../../Observer';
@@ -10,8 +12,52 @@ import { Observer, GLOBAL_EVENT } from '../../Observer';
 const IMAGES_EXT = ['jpg', 'png', 'gif'];
 
 let watcher = null;
+let projectPath = "";
+let pathModes = {};
 
 class FileSystem {
+    static get projectPath() { return projectPath; }
+
+    static resetProject() {
+        projectPath = "";
+        pathModes = {};
+    }
+
+    static resolveProjectPath(value, base = projectPath) {
+        if (!value || nodePath.isAbsolute(value)) return value;
+        if (!base) throw new Error(I18.f("SAVE_PROJECT_FIRST"));
+        return FileSystem.fixPath(nodePath.resolve(nodePath.dirname(base), value));
+    }
+
+    static relativePath(value, base) {
+        if (!value) return "";
+        return FileSystem.fixPath(nodePath.relative(nodePath.dirname(base), value)) || ".";
+    }
+
+    static ensureProjectSaved() {
+        if (projectPath) return true;
+        dialog.showMessageBox({message: I18.f("SAVE_PROJECT_FIRST"), buttons: [I18.f("OK")]});
+        return !!Project.save();
+    }
+
+    static selectPathMode() {
+        const result = dialog.showMessageBox({
+            message: I18.f("RESOURCE_PATH_MODE"),
+            buttons: [I18.f("ABSOLUTE_PATH"), I18.f("RELATIVE_PATH"), I18.f("CANCEL")],
+            defaultId: 0, cancelId: 2
+        });
+        if (result === 2 || result === undefined) return null;
+        if (result === 1 && !FileSystem.ensureProjectSaved()) return null;
+        return result === 1 ? "relative" : "absolute";
+    }
+
+    static formatExportPath(value, mode) {
+        if (!value) return "";
+        if ((mode === "relative" || !nodePath.isAbsolute(value)) && !FileSystem.ensureProjectSaved()) return null;
+        const absolute = FileSystem.resolveProjectPath(FileSystem.fixPath(value));
+        return mode === "relative" ? FileSystem.relativePath(absolute, projectPath) : absolute;
+    }
+
     static fixPath(path) {
         return path.split("\\").join("/");
     }
@@ -24,7 +70,7 @@ class FileSystem {
         let dir = dialog.showOpenDialog({
             properties: ['openDirectory']
         });
-        return dir;
+        return dir && dir.length ? dir[0] : null;
     }
 
     static getFolderFilesList(dir, base = "", list = []) {
@@ -50,7 +96,9 @@ class FileSystem {
             properties: ['openFile', 'multiSelections']
         });
 
-        if (list) {
+        if (list && list.length) {
+            const pathMode = FileSystem.selectPathMode();
+            if (!pathMode) { if (cb) cb(); return; }
             let files = [];
             for (let path of list) {
                 path = FileSystem.fixPath(path);
@@ -59,7 +107,8 @@ class FileSystem {
                 files.push({
                     name: name,
                     path: path,
-                    folder: ""
+                    folder: "",
+                    pathMode: pathMode
                 });
             }
 
@@ -77,7 +126,9 @@ class FileSystem {
 
         if (dir && dir.length) {
             let path = FileSystem.fixPath(dir[0]);
-            FileSystem.loadFolder(path, cb);
+            const pathMode = FileSystem.selectPathMode();
+            if (!pathMode) { if (cb) cb(); return; }
+            FileSystem.loadFolder(path, cb, pathMode);
         }
         else {
             if (cb) cb();
@@ -104,6 +155,7 @@ class FileSystem {
     }
 
     static terminateWatch() {
+        pathModes = {};
         if (watcher) {
             watcher.close();
             watcher = null;
@@ -119,6 +171,8 @@ class FileSystem {
 
         for (let item of list) {
             let path = item.path;
+            item.pathMode = item.pathMode || pathModes[item.folder || path] || "absolute";
+            pathModes[item.folder || path] = item.pathMode;
             let ext = FileSystem.getExtFromPath(path);
 
             if (IMAGES_EXT.indexOf(ext) >= 0) {
@@ -139,7 +193,8 @@ class FileSystem {
         });
     }
 
-    static loadFolder(path, cb) {
+    static loadFolder(path, cb, pathMode = pathModes[path] || "absolute") {
+        pathModes[path] = pathMode;
         if (fs.existsSync(path)) {
             FileSystem.startWatch(path);
 
@@ -151,6 +206,7 @@ class FileSystem {
 
             for (let item of list) {
                 item.folder = path;
+                item.pathMode = pathMode;
             }
 
             FileSystem.loadImages(list, cb);
@@ -173,11 +229,36 @@ class FileSystem {
             path = FileSystem.fixPath(path);
 
             try {
-                fs.writeFileSync(path, JSON.stringify(data, null, 2));
+                const encode = (value, mode) => {
+                    const absolute = FileSystem.resolveProjectPath(value, projectPath || path);
+                    return mode === "relative" ? FileSystem.relativePath(absolute, path) : absolute;
+                };
+                const folderPathModes = {};
+                const folders = (data.folders || []).map(folder => {
+                    const mode = (data.folderPathModes || {})[folder] || "absolute";
+                    const saved = encode(folder, mode);
+                    folderPathModes[saved] = mode;
+                    return saved;
+                });
+                const savePath = encode(data.packOptions.savePath || "", data.packOptions.savePathMode);
+                const saved = Object.assign({}, data, {
+                    images: (data.images || []).map(item => Object.assign({}, item, {
+                        path: encode(item.path, item.pathMode),
+                        folder: encode(item.folder || "", item.pathMode)
+                    })),
+                    folders: folders,
+                    folderPathModes: folderPathModes,
+                    savePath: savePath,
+                    packOptions: Object.assign({}, data.packOptions, {savePath: savePath})
+                });
+                fs.writeFileSync(path, JSON.stringify(saved, null, 2));
+                data.packOptions.savePath = savePath;
+                projectPath = path;
                 Controller.updateProject(path);
             }
             catch (e) {
-
+                dialog.showErrorBox(I18.f("PROJECT_SAVE_ERROR"), e.message);
+                return undefined;
             }
         }
 
@@ -199,6 +280,7 @@ class FileSystem {
             if (path && path[0]) {
                 path = FileSystem.fixPath(path[0]);
             }
+            else { path = null; }
         }
 
         let data = null;
@@ -207,6 +289,22 @@ class FileSystem {
             try {
                 data = fs.readFileSync(path);
                 data = JSON.parse(data);
+                const modes = data.folderPathModes || {};
+                data.images = (data.images || []).map(item => Object.assign({}, item, {
+                    pathMode: item.pathMode || (nodePath.isAbsolute(item.path) ? "absolute" : "relative"),
+                    path: FileSystem.resolveProjectPath(item.path, path),
+                    folder: FileSystem.resolveProjectPath(item.folder || "", path)
+                }));
+                data.folderPathModes = {};
+                data.folders = (data.folders || []).map(folder => {
+                    const absolute = FileSystem.resolveProjectPath(folder, path);
+                    data.folderPathModes[absolute] = modes[folder] || (nodePath.isAbsolute(folder) ? "absolute" : "relative");
+                    return absolute;
+                });
+                data.packOptions = data.packOptions || {};
+                data.packOptions.savePath = data.packOptions.savePath || data.savePath || "";
+                data.packOptions.savePathMode = data.packOptions.savePathMode || (data.packOptions.savePath && !nodePath.isAbsolute(data.packOptions.savePath) ? "relative" : "absolute");
+                projectPath = path;
                 Controller.updateProject(path);
             }
             catch (e) { data = null }

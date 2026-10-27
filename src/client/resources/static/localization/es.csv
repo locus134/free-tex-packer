@@ -138,3 +138,9 @@ SELECT_DATA_FILE;Datos
 SPLITTER;Desembalaje atlas
 SPLITTER_ERROR_NO_FRAMES;No se ha encontrado ningún sprite. Quizás el formato del atlas sea incorrecto.
 HOLD_TRIM;Mantener corte:
+RESOURCE_PATH_MODE;Resource path mode
+ABSOLUTE_PATH;Absolute path
+RELATIVE_PATH;Relative path
+EXPORT_PATH_MODE;Export path mode
+SAVE_PROJECT_FIRST;Save the project first to use paths relative to the .ftpp file.
+PROJECT_SAVE_ERROR;Could not save project

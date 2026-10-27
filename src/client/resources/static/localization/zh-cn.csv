@@ -138,3 +138,9 @@ SELECT_DATA_FILE;数据文件
 SPLITTER;分割精灵表
 SPLITTER_ERROR_NO_FRAMES;精灵图没有找到，请检查文件格式是否正确。
 HOLD_TRIM;保持整齐(修剪):
+RESOURCE_PATH_MODE;资源路径方式
+ABSOLUTE_PATH;绝对路径
+RELATIVE_PATH;相对路径
+EXPORT_PATH_MODE;导出路径方式
+SAVE_PROJECT_FIRST;请先保存项目，以便相对于 .ftpp 文件解析路径。
+PROJECT_SAVE_ERROR;项目保存失败

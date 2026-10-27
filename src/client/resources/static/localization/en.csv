@@ -138,3 +138,9 @@ SELECT_DATA_FILE;Data file
 SPLITTER;Split sheet
 SPLITTER_ERROR_NO_FRAMES;Sprites not found. Probably, atlas format is incorrect.
 HOLD_TRIM;Hold trim:
+RESOURCE_PATH_MODE;Resource path mode
+ABSOLUTE_PATH;Absolute path
+RELATIVE_PATH;Relative path
+EXPORT_PATH_MODE;Export path mode
+SAVE_PROJECT_FIRST;Save the project first to use paths relative to the .ftpp file.
+PROJECT_SAVE_ERROR;Could not save project

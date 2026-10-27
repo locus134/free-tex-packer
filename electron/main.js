@@ -5,16 +5,17 @@ const windowStateKeeper = require('electron-window-state');
 const {app, BrowserWindow, ipcMain, Menu, shell} = require('electron');
 const {autoUpdater} = require("electron-updater");
 
-let mainWindow;
-let RECENT_PROJECTS = [];
-let CURRENT_LOCALE = "";
-let LOCALE_STRINGS = {};
+const windows = new Map();
+const pendingProjects = [];
+let ready = false;
+
+function getActiveWindow() {
+    return BrowserWindow.getFocusedWindow() || windows.keys().next().value;
+}
 let APP_INFO = {};
 let LANGUAGES = [];
-let CURRENT_PROJECT = "";
-let CURRENT_PROJECT_MODIFIED = false;
 
-function createWindow() {
+function createWindow(projectPath = "") {
 	let w = 1300;
 	let h = 700;
 
@@ -28,7 +29,7 @@ function createWindow() {
         defaultHeight: h
     });
     
-    mainWindow = new BrowserWindow({
+    const mainWindow = new BrowserWindow({
         x: mainWindowState.x,
         y: mainWindowState.y,
         width: mainWindowState.width,
@@ -39,7 +40,10 @@ function createWindow() {
         icon: path.resolve(__dirname, 'www/static/images/icon.png')
     });
 
+    windows.set(mainWindow, {path: "", modified: false, pendingProject: projectPath,
+        locale: "", strings: {}, recentProjects: []});
     mainWindowState.manage(mainWindow);
+    mainWindow.on('focus', () => buildMenu(mainWindow));
 
     mainWindow.on('page-title-updated', function(e) {
         e.preventDefault();
@@ -49,45 +53,30 @@ function createWindow() {
         mainWindow.loadURL('http://localhost:4000/');
     }
     else {
-        mainWindow.loadFile('./www/index.html');
+        mainWindow.loadFile(path.join(__dirname, 'www/index.html'));
     }
 
-    Menu.setApplicationMenu(null);
-
     mainWindow.on('close', function(e) {
-        if(CURRENT_PROJECT_MODIFIED) {
-            sendMessage({actionName: 'quit'});
+        if(windows.get(mainWindow).modified) {
+            dispatchMessage({actionName: 'quit'}, mainWindow);
             e.preventDefault();
         }
     });
     
     mainWindow.on('closed', function() {
-        mainWindow = null;
+        windows.delete(mainWindow);
     });
 	
-	mainWindow.webContents.on('will-navigate', handleRedirect);
-	mainWindow.webContents.on('new-window', handleRedirect);
+	mainWindow.webContents.on('will-navigate', (e, url) => handleRedirect(e, url, mainWindow));
+	mainWindow.webContents.on('new-window', (e, url) => handleRedirect(e, url, mainWindow));
 
-    mainWindow.webContents.on('did-finish-load', function() {
-        CURRENT_PROJECT = "";
-        CURRENT_PROJECT_MODIFIED = false;
-        updateWindowTitle();
-		
-		if(argv.env !== 'development' && process.argv.length > 1) {
-			sendMessage({actionName: 'project-load', custom: process.argv[1]});
-		}
-
-        autoUpdater.checkForUpdates();
-    });
-
-    mainWindow.webContents.on('context-menu', showInputContextMenu);
-
-    startAutoUpdater();
-
-    onProjectUpdated();
+    mainWindow.webContents.on('context-menu', (e, props) => showInputContextMenu(e, props, mainWindow));
+    updateWindowTitle(mainWindow);
+    return mainWindow;
 }
 
-function showInputContextMenu(e, props) {
+function showInputContextMenu(e, props, mainWindow) {
+    const LOCALE_STRINGS = windows.get(mainWindow).strings;
     if(!props.isEditable) return;
     
     const menu = Menu.buildFromTemplate([
@@ -152,7 +141,7 @@ function startAutoUpdater() {
     });
 
     autoUpdater.on('update-available', (info) => {
-        mainWindow.send('update-available', info);
+        for (const win of windows.keys()) win.webContents.send('update-available', info);
     });
 
     autoUpdater.on('update-not-available', (info) => {
@@ -162,7 +151,7 @@ function startAutoUpdater() {
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
-        mainWindow.send('download-progress', progressObj.percent);
+        for (const win of windows.keys()) win.webContents.send('download-progress', progressObj.percent);
     });
 
     autoUpdater.on('update-downloaded', (info) => {
@@ -174,14 +163,20 @@ function startAutoUpdater() {
     });
 }
 
-function handleRedirect(e, url) {
-	if(url !== mainWindow.getURL()) {
+function handleRedirect(e, url, mainWindow) {
+	if(url !== mainWindow.webContents.getURL()) {
         e.preventDefault();
         shell.openExternal(url);
     }
 }
 
-function buildMenu() {
+function buildMenu(mainWindow = getActiveWindow()) {
+    if (!mainWindow || !windows.has(mainWindow)) return;
+    const state = windows.get(mainWindow);
+    const LOCALE_STRINGS = state.strings;
+    const CURRENT_LOCALE = state.locale;
+    const RECENT_PROJECTS = state.recentProjects;
+    const sendMessage = item => dispatchMessage(item, mainWindow);
     let template = [];
     
     let recentProjects = [];
@@ -279,46 +274,73 @@ function installCLI() {
     shell.openExternal('https://github.com/odrick/free-tex-packer-cli');
 }
 
-function quit() {
-    CURRENT_PROJECT_MODIFIED = false;
-    app.quit();
+function quit(win) {
+    if (!win || !windows.has(win)) return;
+    windows.get(win).modified = false;
+    win.close();
 }
 
-function sendMessage(e) {
-    let payload = null;
-    if(e.custom) {
-        payload = {data: e.custom};
+function dispatchMessage(item, win = getActiveWindow()) {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send(item.actionName, item.custom ? {data: item.custom} : null);
+}
+
+function updateWindowTitle(win) {
+    if (!win || !windows.has(win)) return;
+    const state = windows.get(win);
+    const name = state.path ? path.basename(state.path) : "untitled.ftpp";
+    win.setTitle(APP_INFO.displayName ? (state.modified ? "* " : "") + name + ' - ' + APP_INFO.displayName : "");
+}
+
+function openProject(projectPath) {
+    if (!ready) pendingProjects.push(projectPath);
+    else createWindow(projectPath);
+}
+
+function projectArguments(args) {
+    return args.filter(arg => /\.ftpp$/i.test(arg));
+}
+
+app.on('open-file', (event, projectPath) => {
+    event.preventDefault();
+    openProject(projectPath);
+});
+
+const hasInstanceLock = app.requestSingleInstanceLock();
+if (!hasInstanceLock) app.quit();
+
+app.on('second-instance', (event, args, workingDirectory) => {
+    const projects = projectArguments(args);
+    for (const project of projects) openProject(path.resolve(workingDirectory, project));
+    if (!projects.length) {
+        const win = getActiveWindow();
+        if (win) {
+            if (win.isMinimized()) win.restore();
+            win.focus();
+        }
     }
-    
-    mainWindow.send(e.actionName, payload);
-}
+});
 
-function onProjectUpdated(data=null) {
-    CURRENT_PROJECT = data ? data.path : "";
-    CURRENT_PROJECT_MODIFIED = false;
-    updateWindowTitle();
-}
+app.on('ready', () => {
+    if (!hasInstanceLock) return;
+    ready = true;
+    const projects = Array.from(new Set(pendingProjects.concat(projectArguments(process.argv))));
+    if (projects.length) projects.forEach(project => createWindow(project));
+    else createWindow();
+    pendingProjects.length = 0;
+    startAutoUpdater();
+    autoUpdater.checkForUpdates();
+});
 
-function onProjectModified(data=null) {
-    CURRENT_PROJECT_MODIFIED = data ? data.val : false;
-    updateWindowTitle();
-}
-
-function updateWindowTitle() {
-    if(!APP_INFO.displayName) {
-        mainWindow.setTitle("");
-        return;
+ipcMain.on('renderer-ready', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || !windows.has(win)) return;
+    const state = windows.get(win);
+    if (state.pendingProject) {
+        dispatchMessage({actionName: 'project-load', custom: state.pendingProject}, win);
+        state.pendingProject = "";
     }
-    
-    let name;
-
-    if(!CURRENT_PROJECT) name = "untitled.ftpp";
-    else name = CURRENT_PROJECT.split('/').pop();
-
-    mainWindow.setTitle((CURRENT_PROJECT_MODIFIED ? "* " : "") + name + ' - ' + APP_INFO.displayName);
-}
-
-app.on('ready', createWindow);
+});
 
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') {
@@ -327,7 +349,7 @@ app.on('window-all-closed', function () {
 });
 
 app.on('activate', function () {
-    if (mainWindow === null) {
+    if (!windows.size) {
         createWindow();
     }
 });
@@ -355,7 +377,7 @@ ipcMain.on('tinify', (e, data) => {
 ipcMain.on('update-app-info', (e, data) => {
     APP_INFO = data;
     buildMenu();
-    updateWindowTitle();
+    for (const win of windows.keys()) updateWindowTitle(win);
 });
 
 ipcMain.on('update-languages', (e, data) => {
@@ -364,24 +386,35 @@ ipcMain.on('update-languages', (e, data) => {
 });
 
 ipcMain.on('update-locale', (e, data) => {
-    CURRENT_LOCALE = data.currentLocale;
-    LOCALE_STRINGS = data.strings;
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!windows.has(win)) return;
+    windows.get(win).locale = data.currentLocale;
+    windows.get(win).strings = data.strings;
     buildMenu();
 });
 
 ipcMain.on('project-recent-update', (e, data) => {
-    RECENT_PROJECTS = data.projects;
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!windows.has(win)) return;
+    windows.get(win).recentProjects = data.projects;
     buildMenu();
 });
 
 ipcMain.on('project-update', (e, data) => {
-    onProjectUpdated(data);
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!windows.has(win)) return;
+    windows.get(win).path = data.path;
+    windows.get(win).modified = false;
+    updateWindowTitle(win);
 });
 
 ipcMain.on('project-modified', (e, data) => {
-    onProjectModified(data);
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!windows.has(win)) return;
+    windows.get(win).modified = data.val;
+    updateWindowTitle(win);
 });
 
 ipcMain.on('quit', (e, data) => {
-    quit();
+    quit(BrowserWindow.fromWebContents(e.sender));
 });

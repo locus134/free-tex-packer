@@ -95,6 +95,10 @@ class Controller {
         setTimeout(Project.startObserv, 1000);
     }
     
+    static ready() {
+        ipcRenderer.send("renderer-ready");
+    }
+
     static updateProject(path="") {
         ipcRenderer.send('project-update', {path: path});
     }

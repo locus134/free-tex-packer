@@ -33,6 +33,8 @@ class PackProperties extends React.Component {
         this.onExporterPropChanged = this.onExporterPropChanged.bind(this);
         this.forceUpdate = this.forceUpdate.bind(this);
         this.selectSavePath = this.selectSavePath.bind(this);
+        this.onSavePathModeChanged = this.onSavePathModeChanged.bind(this);
+        this.onSavePathChanged = this.onSavePathChanged.bind(this);
         
         this.packOptions = this.loadOptions();
         this.loadCustomExporter();
@@ -81,6 +83,7 @@ class PackProperties extends React.Component {
         data.tinifyKey = data.tinifyKey === undefined ? "" : data.tinifyKey;
         data.fileName = data.fileName || "pack-result";
         data.savePath = data.savePath || "";
+        data.savePathMode = data.savePathMode || "absolute";
         data.width = data.width === undefined ? 2048 : data.width;
         data.height = data.height === undefined ? 2048 : data.height;
         data.fixedSize = data.fixedSize === undefined ? false : data.fixedSize;
@@ -135,6 +138,7 @@ class PackProperties extends React.Component {
         data.exporter = ReactDOM.findDOMNode(this.refs.exporter).value;
         data.fileName = ReactDOM.findDOMNode(this.refs.fileName).value;
         data.savePath = ReactDOM.findDOMNode(this.refs.savePath).value;
+        data.savePathMode = ReactDOM.findDOMNode(this.refs.savePathMode).value;
         data.width = Number(ReactDOM.findDOMNode(this.refs.width).value) || 0;
         data.height = Number(ReactDOM.findDOMNode(this.refs.height).value) || 0;
         data.fixedSize = ReactDOM.findDOMNode(this.refs.fixedSize).checked;
@@ -165,6 +169,7 @@ class PackProperties extends React.Component {
         ReactDOM.findDOMNode(this.refs.exporter).value = this.packOptions.exporter;
         ReactDOM.findDOMNode(this.refs.fileName).value = this.packOptions.fileName;
         ReactDOM.findDOMNode(this.refs.savePath).value = this.packOptions.savePath;
+        ReactDOM.findDOMNode(this.refs.savePathMode).value = this.packOptions.savePathMode;
         ReactDOM.findDOMNode(this.refs.width).value = Number(this.packOptions.width) || 0;
         ReactDOM.findDOMNode(this.refs.height).value = Number(this.packOptions.height) || 0;
         ReactDOM.findDOMNode(this.refs.fixedSize).checked = this.packOptions.fixedSize;
@@ -247,10 +252,39 @@ class PackProperties extends React.Component {
         Observer.emit(GLOBAL_EVENT.SHOW_EDIT_CUSTOM_EXPORTER);
     }
 
+    onSavePathChanged() {
+        const input = ReactDOM.findDOMNode(this.refs.savePath);
+        const value = FileSystem.formatExportPath(input.value, this.packOptions.savePathMode);
+        input.value = value === null ? this.packOptions.savePath : value;
+        if (value !== null) this.onExporterPropChanged();
+    }
+
+    onSavePathModeChanged() {
+        const select = ReactDOM.findDOMNode(this.refs.savePathMode);
+        const input = ReactDOM.findDOMNode(this.refs.savePath);
+        const mode = select.value;
+        // Saving can refresh the controls; retain the user's requested values.
+        const value = input.value;
+        if (mode === "relative" && !FileSystem.ensureProjectSaved()) {
+            select.value = this.packOptions.savePathMode;
+            return;
+        }
+        const formatted = FileSystem.formatExportPath(value, mode);
+        if (formatted === null) {
+            select.value = this.packOptions.savePathMode;
+            return;
+        }
+        select.value = mode;
+        input.value = formatted;
+        this.onExporterPropChanged();
+    }
+
     selectSavePath() {
         let dir = FileSystem.selectFolder();
         if(dir) {
-            ReactDOM.findDOMNode(this.refs.savePath).value = dir;
+            const value = FileSystem.formatExportPath(dir, this.packOptions.savePathMode);
+            if (value === null) return;
+            ReactDOM.findDOMNode(this.refs.savePath).value = value;
             this.onExporterPropChanged();
         }
     }
@@ -342,9 +376,19 @@ class PackProperties extends React.Component {
                                 <td><input ref="fileName" className="border-color-gray" type="text" defaultValue={this.packOptions.fileName} onBlur={this.onExporterPropChanged} /></td>
                                 <td></td>
                             </tr>
+                            <tr style={{display: PLATFORM === 'electron' ? '' : 'none'}}>
+                                <td>{I18.f("EXPORT_PATH_MODE")}</td>
+                                <td>
+                                    <select ref="savePathMode" className="border-color-gray" defaultValue={this.packOptions.savePathMode} onChange={this.onSavePathModeChanged}>
+                                        <option value="absolute">{I18.f("ABSOLUTE_PATH")}</option>
+                                        <option value="relative">{I18.f("RELATIVE_PATH")}</option>
+                                    </select>
+                                </td>
+                                <td></td>
+                            </tr>
                             <tr title={I18.f("SAVE_PATH_TITLE")} style={{display: PLATFORM === 'electron' ? '' : 'none'}}>
                                 <td>{I18.f("SAVE_PATH")}</td>
-                                <td><input ref="savePath" className="border-color-gray" type="text" defaultValue={this.packOptions.savePath} onBlur={this.onExporterPropChanged} /></td>
+                                <td><input ref="savePath" className="border-color-gray" type="text" defaultValue={this.packOptions.savePath} onBlur={this.onSavePathChanged} /></td>
                                 <td>
                                     <div className="folder-btn back-800" onClick={this.selectSavePath}></div>
                                 </td>

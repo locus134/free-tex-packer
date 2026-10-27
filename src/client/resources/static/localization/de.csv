@@ -137,3 +137,9 @@ SELECT_DATA_FILE;Daten-Datei
 SPLITTER;Sprites aus Bild extrahieren
 SPLITTER_ERROR_NO_FRAMES;Sprites wurden nicht gefunden. Vermutlich ist das Atlas Format falsch.
 HOLD_TRIM;Trim beibehalten:
+RESOURCE_PATH_MODE;Resource path mode
+ABSOLUTE_PATH;Absolute path
+RELATIVE_PATH;Relative path
+EXPORT_PATH_MODE;Export path mode
+SAVE_PROJECT_FIRST;Save the project first to use paths relative to the .ftpp file.
+PROJECT_SAVE_ERROR;Could not save project

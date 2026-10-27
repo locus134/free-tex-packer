@@ -40,6 +40,7 @@ class Project {
         let keys = Object.keys(APP.i.images);
         let images = [];
         let folders = [];
+        let folderPathModes = {};
 
         for (let key of keys) {
             let image = APP.i.images[key].fsPath;
@@ -47,6 +48,7 @@ class Project {
 
             if (folder) {
                 if (folders.indexOf(folder) < 0) folders.push(folder);
+                folderPathModes[folder] = image.pathMode || "absolute";
             }
             else {
                 images.push(image);
@@ -66,6 +68,7 @@ class Project {
             savePath: APP.i.packOptions.savePath || '',
             images: images,
             folders: folders,
+            folderPathModes: folderPathModes,
             packOptions: packOptions
         }
     }
@@ -103,31 +106,36 @@ class Project {
 
     static save() {
         if (!CURRENT_PROJECT_PATH) {
-            Project.saveAs();
-            return;
+            return Project.saveAs();
         }
 
-        let path = FileSystem.saveProject(Project.getData(), CURRENT_PROJECT_PATH);
+        let data = Project.getData();
+        let path = FileSystem.saveProject(data, CURRENT_PROJECT_PATH);
         if (path) {
             CURRENT_PROJECT_PATH = path;
+            PackProperties.i.setOptions(data.packOptions);
             Project.setProjectChanged(false);
             Project.updateRecentProjects(path);
         }
+        return !!path;
     }
 
     static saveAs() {
-        let path = FileSystem.saveProject(Project.getData());
+        let data = Project.getData();
+        let path = FileSystem.saveProject(data);
         if (path) {
             CURRENT_PROJECT_PATH = path;
+            PackProperties.i.setOptions(data.packOptions);
             Project.setProjectChanged(false);
             Project.updateRecentProjects(path);
         }
+        return !!path;
     }
 
     static saveChanges(cb = null) {
         if (CURRENT_PROJECT_MODIFIED) {
             let buttons = {
-                "yes": { caption: I18.f("YES"), callback: () => { Project.save(); if (cb) cb(); } },
+                "yes": { caption: I18.f("YES"), callback: () => { if (Project.save() && cb) cb(); } },
                 "no": { caption: I18.f("NO"), callback: () => { if (cb) cb(); } },
                 "cancel": { caption: I18.f("CANCEL") }
             };
@@ -176,7 +184,7 @@ class Project {
                             }
                             cf++;
                             loadNextFolder();
-                        });
+                        }, data.folderPathModes[path]);
                     };
 
                     loadNextFolder();
@@ -195,6 +203,7 @@ class Project {
             PackProperties.i.setOptions(PackProperties.i.loadOptions());
             ImagesList.i.setImages({});
             CURRENT_PROJECT_PATH = "";
+            FileSystem.resetProject();
             Project.setProjectChanged(false);
 
             Controller.updateProject();

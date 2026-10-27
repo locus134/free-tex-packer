@@ -3,12 +3,14 @@ const path = require('path');
 const {dialog} = require('electron').remote;
 
 import I18 from '../../utils/I18';
+import FileSystem from 'platform/FileSystem';
 
 class Downloader {
 
     static run(files, fileName, savePath) {
         
-        let dir = savePath;
+        if (savePath && !path.isAbsolute(savePath) && !FileSystem.ensureProjectSaved()) return;
+        let dir = FileSystem.resolveProjectPath(savePath);
         
         if(!dir) {
             dir = dialog.showOpenDialog({

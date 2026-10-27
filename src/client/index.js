@@ -42,6 +42,7 @@ function loadLocalization() {
 function renderLayout() {
     Controller.updateLocale();
     layout = ReactDOM.render(React.createElement(MainLayout), document.getElementById("root"));
+    Controller.ready();
 }
 
 function injectCss(path) {
