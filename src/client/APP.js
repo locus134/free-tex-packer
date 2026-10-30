@@ -25,6 +25,7 @@ class APP {
         Observer.on(GLOBAL_EVENT.PACK_OPTIONS_CHANGED, this.onPackOptionsChanged, this);
         Observer.on(GLOBAL_EVENT.PACK_EXPORTER_CHANGED, this.onPackExporterOptionsChanged, this);
         Observer.on(GLOBAL_EVENT.START_EXPORT, this.startExport, this);
+        Observer.on(GLOBAL_EVENT.START_EXPORT_PREVIEW, () => this.startExport(true));
     }
 
     static get i() {
@@ -83,7 +84,7 @@ class APP {
         Observer.emit(GLOBAL_EVENT.SHOW_MESSAGE, err.description);
     }
 
-    startExport() {
+    startExport(preview = false) {
         if (!this.packResult || !this.packResult.length) {
             Observer.emit(GLOBAL_EVENT.SHOW_MESSAGE, I18.f("NO_IMAGES_ERROR"));
             return;
@@ -95,10 +96,10 @@ class APP {
         }
 
         Observer.emit(GLOBAL_EVENT.SHOW_SHADER);
-        setTimeout(() => this.doExport(), 0);
+        setTimeout(() => this.doExport(preview), 0);
     }
 
-    async doExport() {
+    async doExport(preview = false) {
         let exporter = this.packOptions.exporter;
         let textureName = this.packOptions.textureName;
         let filterClass = getFilterByType(this.packOptions.filter);
@@ -166,7 +167,12 @@ class APP {
             ix++;
         }
 
-        Downloader.run(files, this.packOptions.fileName, this.packOptions.savePath);
+        if (preview) {
+            Observer.emit(GLOBAL_EVENT.SHOW_EXPORT_PREVIEW, files.filter(file => !file.base64));
+        }
+        else {
+            Downloader.run(files, this.packOptions.fileName, this.packOptions.savePath);
+        }
         Observer.emit(GLOBAL_EVENT.HIDE_SHADER);
     }
 }

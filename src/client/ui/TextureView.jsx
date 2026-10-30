@@ -127,6 +127,7 @@ class TextureView extends React.Component {
             Observer.emit(GLOBAL_EVENT.IMAGE_ITEM_SELECTED, {
                 isFolder: false,
                 path: selectedItem.file,
+                reveal: true,
                 ctrlKey: e.ctrlKey || e.shiftKey,
                 shiftKey: false
             });

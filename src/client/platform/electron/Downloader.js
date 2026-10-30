@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const {dialog} = require('electron').remote;
+import dialog from './Dialogs';
 
 import I18 from '../../utils/I18';
 import FileSystem from 'platform/FileSystem';

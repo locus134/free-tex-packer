@@ -84,6 +84,7 @@ class PackProperties extends React.Component {
         data.fileName = data.fileName || "pack-result";
         data.savePath = data.savePath || "";
         data.savePathMode = data.savePathMode || "absolute";
+        data.importPathMode = data.importPathMode === "relative" ? "relative" : "absolute";
         data.width = data.width === undefined ? 2048 : data.width;
         data.height = data.height === undefined ? 2048 : data.height;
         data.fixedSize = data.fixedSize === undefined ? false : data.fixedSize;
@@ -139,6 +140,7 @@ class PackProperties extends React.Component {
         data.fileName = ReactDOM.findDOMNode(this.refs.fileName).value;
         data.savePath = ReactDOM.findDOMNode(this.refs.savePath).value;
         data.savePathMode = ReactDOM.findDOMNode(this.refs.savePathMode).value;
+        data.importPathMode = ReactDOM.findDOMNode(this.refs.importPathMode).value;
         data.width = Number(ReactDOM.findDOMNode(this.refs.width).value) || 0;
         data.height = Number(ReactDOM.findDOMNode(this.refs.height).value) || 0;
         data.fixedSize = ReactDOM.findDOMNode(this.refs.fixedSize).checked;
@@ -170,6 +172,7 @@ class PackProperties extends React.Component {
         ReactDOM.findDOMNode(this.refs.fileName).value = this.packOptions.fileName;
         ReactDOM.findDOMNode(this.refs.savePath).value = this.packOptions.savePath;
         ReactDOM.findDOMNode(this.refs.savePathMode).value = this.packOptions.savePathMode;
+        ReactDOM.findDOMNode(this.refs.importPathMode).value = this.packOptions.importPathMode;
         ReactDOM.findDOMNode(this.refs.width).value = Number(this.packOptions.width) || 0;
         ReactDOM.findDOMNode(this.refs.height).value = Number(this.packOptions.height) || 0;
         ReactDOM.findDOMNode(this.refs.fixedSize).checked = this.packOptions.fixedSize;
@@ -244,6 +247,10 @@ class PackProperties extends React.Component {
         }
     }
     
+    startPreview() {
+        Observer.emit(GLOBAL_EVENT.START_EXPORT_PREVIEW);
+    }
+
     startExport() {
         Observer.emit(GLOBAL_EVENT.START_EXPORT);
     }
@@ -377,6 +384,16 @@ class PackProperties extends React.Component {
                                 <td></td>
                             </tr>
                             <tr style={{display: PLATFORM === 'electron' ? '' : 'none'}}>
+                                <td>{I18.f("IMPORT_PATH_MODE")}</td>
+                                <td>
+                                    <select ref="importPathMode" className="border-color-gray" defaultValue={this.packOptions.importPathMode} onChange={this.onExporterPropChanged}>
+                                        <option value="absolute">{I18.f("ABSOLUTE_PATH")}</option>
+                                        <option value="relative">{I18.f("RELATIVE_PATH")}</option>
+                                    </select>
+                                </td>
+                                <td></td>
+                            </tr>
+                            <tr style={{display: PLATFORM === 'electron' ? '' : 'none'}}>
                                 <td>{I18.f("EXPORT_PATH_MODE")}</td>
                                 <td>
                                     <select ref="savePathMode" className="border-color-gray" defaultValue={this.packOptions.savePathMode} onChange={this.onSavePathModeChanged}>
@@ -395,7 +412,8 @@ class PackProperties extends React.Component {
                             </tr>
                             <tr>
                                 <td colSpan="3" className="center-align">
-                                    <div className="btn back-800 border-color-gray color-white" onClick={this.startExport}>{I18.f("EXPORT")}</div>
+                                    <button type="button" className="btn back-800 border-color-gray color-white" onClick={this.startPreview}>{I18.f("PREVIEW")}</button>
+                            <div className="btn back-800 border-color-gray color-white" onClick={this.startExport}>{I18.f("EXPORT")}</div>
                                 </td>
                             </tr>
                             

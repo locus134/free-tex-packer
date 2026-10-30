@@ -1,12 +1,15 @@
 {
   "name": "free-tex-packer",
   "displayName": "Free texture packer",
-  "version": "0.6.7",
+  "version": "0.6.10",
   "description": "Free online texture packer",
   "url": "http://free-tex-packer.com",
   "download": "http://free-tex-packer.com/download",
   "webApp": "http://free-tex-packer.com/app",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "tinifyUrl": "http://free-tex-packer.com/server/tinify.php",
   "localizations": [
     "en",
@@ -51,6 +54,7 @@
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "test-electron": "electron tests/electron-smoke.cjs",
     "start": "webpack-dev-server --host 127.0.0.1 --port 4000",
     "start-electron": "webpack-dev-server --host 127.0.0.1 --port 4000 --platform electron",
     "build-web": "webpack --build --platform web",
@@ -92,7 +96,7 @@
     "babel-runtime": "^6.23.0",
     "chokidar": "^2.0.4",
     "copy-webpack-plugin": "^4.6.0",
-    "electron": "^4.0.4",
+    "electron": "45.0.0",
     "eventemitter3": "^3.0.1",
     "file-saver": "^2.0.0",
     "glob": "^7.1.1",

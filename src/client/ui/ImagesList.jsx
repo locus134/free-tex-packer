@@ -88,10 +88,19 @@ class ImagesList extends React.Component {
     
     onFilesDrop(e) {
         e.preventDefault();
+        e.stopPropagation();
+        const help = ReactDOM.findDOMNode(this.refs.dropHelp);
+        if (help) help.className = "image-drop-help";
         
         if(e.dataTransfer.files.length) {
-            let loader = new LocalImagesLoader();
-            loader.load(e.dataTransfer.files, null, data => this.loadImagesComplete(data));
+            Observer.emit(GLOBAL_EVENT.SHOW_SHADER);
+            if (PLATFORM === "electron") {
+                FileSystem.importDroppedFiles(e.dataTransfer.files, this.loadImagesComplete);
+            }
+            else {
+                let loader = new LocalImagesLoader();
+                loader.load(e.dataTransfer.files, null, data => this.loadImagesComplete(data));
+            }
         }
         
         return false;
@@ -372,9 +381,25 @@ class ImagesList extends React.Component {
             }
         }
 
-        this.setState({images: images});
+        const reveal = e.reveal && images[path] ? {path} : this.state.reveal;
+        this.setState({images: images, reveal}, () => {
+            if (e.reveal) this.revealImage(path);
+        });
         
         this.emitSelectedChanges();
+    }
+
+    revealImage(path) {
+        const container = ReactDOM.findDOMNode(this.refs.imagesTree);
+        if (!container) return;
+        const row = Array.from(container.querySelectorAll('[data-image-path]'))
+            .find(item => item.getAttribute('data-image-path') === path);
+        if (!row) return;
+        const bounds = row.getBoundingClientRect();
+        const top = container.getBoundingClientRect().top + container.clientTop;
+        const bottom = top + container.clientHeight;
+        if (bounds.top < top) container.scrollTop += bounds.top - top;
+        else if (bounds.bottom > bottom) container.scrollTop += bounds.bottom - bottom;
     }
 
     handleImageClearSelection() {
@@ -537,7 +562,7 @@ class ImagesList extends React.Component {
                 </div>
                 
                 <div ref="imagesTree" className="images-tree">
-                    <ImagesTree data={data} />
+                    <ImagesTree data={data} reveal={this.state.reveal} />
                     {dropHelp}
                 </div>
                 

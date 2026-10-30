@@ -144,3 +144,7 @@ RELATIVE_PATH;相对路径
 EXPORT_PATH_MODE;导出路径方式
 SAVE_PROJECT_FIRST;请先保存项目，以便相对于 .ftpp 文件解析路径。
 PROJECT_SAVE_ERROR;项目保存失败
+IMPORT_PATH_MODE;导入路径方式
+
+PREVIEW;预览
+EXPORT_PREVIEW;导出配置预览

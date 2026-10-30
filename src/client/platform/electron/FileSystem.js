@@ -1,9 +1,10 @@
 const fs = require('fs');
 const nodePath = require('path');
 const chokidar = require('chokidar');
-const { dialog } = require('electron').remote;
+import dialog from './Dialogs';
 
 import Controller from 'platform/Controller';
+import APP from '../../APP';
 import Project from 'platform/Project';
 import I18 from '../../utils/I18';
 import Base64ImagesLoader from '../../utils/Base64ImagesLoader';
@@ -40,15 +41,10 @@ class FileSystem {
         return !!Project.save();
     }
 
-    static selectPathMode() {
-        const result = dialog.showMessageBox({
-            message: I18.f("RESOURCE_PATH_MODE"),
-            buttons: [I18.f("ABSOLUTE_PATH"), I18.f("RELATIVE_PATH"), I18.f("CANCEL")],
-            defaultId: 0, cancelId: 2
-        });
-        if (result === 2 || result === undefined) return null;
-        if (result === 1 && !FileSystem.ensureProjectSaved()) return null;
-        return result === 1 ? "relative" : "absolute";
+    static getImportPathMode() {
+        const mode = APP.i.packOptions.importPathMode === "relative" ? "relative" : "absolute";
+        if (mode === "relative" && !FileSystem.ensureProjectSaved()) return null;
+        return mode;
     }
 
     static formatExportPath(value, mode) {
@@ -56,6 +52,10 @@ class FileSystem {
         if ((mode === "relative" || !nodePath.isAbsolute(value)) && !FileSystem.ensureProjectSaved()) return null;
         const absolute = FileSystem.resolveProjectPath(FileSystem.fixPath(value));
         return mode === "relative" ? FileSystem.relativePath(absolute, projectPath) : absolute;
+    }
+
+    static getFilePath(file) {
+        return require('electron').webUtils.getPathForFile(file);
     }
 
     static fixPath(path) {
@@ -97,7 +97,7 @@ class FileSystem {
         });
 
         if (list && list.length) {
-            const pathMode = FileSystem.selectPathMode();
+            const pathMode = FileSystem.getImportPathMode();
             if (!pathMode) { if (cb) cb(); return; }
             let files = [];
             for (let path of list) {
@@ -126,13 +126,37 @@ class FileSystem {
 
         if (dir && dir.length) {
             let path = FileSystem.fixPath(dir[0]);
-            const pathMode = FileSystem.selectPathMode();
+            const pathMode = FileSystem.getImportPathMode();
             if (!pathMode) { if (cb) cb(); return; }
             FileSystem.loadFolder(path, cb, pathMode);
         }
         else {
             if (cb) cb();
         }
+    }
+
+    static importDroppedFiles(files, cb) {
+        const pathMode = FileSystem.getImportPathMode();
+        if (!pathMode) { if (cb) cb({}); return; }
+        const images = [];
+        for (const file of Array.from(files)) {
+            try {
+                const path = FileSystem.fixPath(FileSystem.getFilePath(file));
+                if (!path) continue;
+                const stat = fs.statSync(path);
+                if (stat.isDirectory()) {
+                    const name = nodePath.basename(path);
+                    const items = FileSystem.getFolderFilesList(path + "/", name + "/");
+                    FileSystem.startWatch(path);
+                    for (const item of items) images.push(Object.assign({}, item, {folder: path, pathMode}));
+                }
+                else if (stat.isFile()) {
+                    images.push({name: nodePath.basename(path), path, folder: "", pathMode});
+                }
+            }
+            catch (e) { }
+        }
+        FileSystem.loadImages(images, cb);
     }
 
     static startWatch(path) {
@@ -233,9 +257,10 @@ class FileSystem {
                     const absolute = FileSystem.resolveProjectPath(value, projectPath || path);
                     return mode === "relative" ? FileSystem.relativePath(absolute, path) : absolute;
                 };
+                const importPathMode = data.packOptions.importPathMode === "relative" ? "relative" : "absolute";
                 const folderPathModes = {};
                 const folders = (data.folders || []).map(folder => {
-                    const mode = (data.folderPathModes || {})[folder] || "absolute";
+                    const mode = importPathMode;
                     const saved = encode(folder, mode);
                     folderPathModes[saved] = mode;
                     return saved;
@@ -243,8 +268,9 @@ class FileSystem {
                 const savePath = encode(data.packOptions.savePath || "", data.packOptions.savePathMode);
                 const saved = Object.assign({}, data, {
                     images: (data.images || []).map(item => Object.assign({}, item, {
-                        path: encode(item.path, item.pathMode),
-                        folder: encode(item.folder || "", item.pathMode)
+                        path: encode(item.path, importPathMode),
+                        pathMode: importPathMode,
+                        folder: encode(item.folder || "", importPathMode)
                     })),
                     folders: folders,
                     folderPathModes: folderPathModes,
@@ -303,7 +329,8 @@ class FileSystem {
                 });
                 data.packOptions = data.packOptions || {};
                 data.packOptions.savePath = data.packOptions.savePath || data.savePath || "";
-                data.packOptions.savePathMode = data.packOptions.savePathMode || (data.packOptions.savePath && !nodePath.isAbsolute(data.packOptions.savePath) ? "relative" : "absolute");
+                data.packOptions.importPathMode = data.packOptions.importPathMode || "absolute";
+                data.packOptions.savePathMode = data.packOptions.savePathMode || "absolute";
                 projectPath = path;
                 Controller.updateProject(path);
             }

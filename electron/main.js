@@ -2,7 +2,7 @@ const path = require('path');
 const tinify = require('tinify');
 const argv = require('optimist').argv;
 const windowStateKeeper = require('electron-window-state');
-const {app, BrowserWindow, ipcMain, Menu, shell} = require('electron');
+const {app, BrowserWindow, ipcMain, Menu, shell, dialog} = require('electron');
 const {autoUpdater} = require("electron-updater");
 
 const windows = new Map();
@@ -37,6 +37,8 @@ function createWindow(projectPath = "") {
         minWidth: w,
         minHeight: h,
         title: "",
+        // This application loads trusted local UI and uses Node for image files and watchers.
+        webPreferences: {nodeIntegration: true, contextIsolation: false},
         icon: path.resolve(__dirname, 'www/static/images/icon.png')
     });
 
@@ -68,7 +70,10 @@ function createWindow(projectPath = "") {
     });
 	
 	mainWindow.webContents.on('will-navigate', (e, url) => handleRedirect(e, url, mainWindow));
-	mainWindow.webContents.on('new-window', (e, url) => handleRedirect(e, url, mainWindow));
+    mainWindow.webContents.setWindowOpenHandler(({url}) => {
+        openExternal(url);
+        return {action: 'deny'};
+    });
 
     mainWindow.webContents.on('context-menu', (e, props) => showInputContextMenu(e, props, mainWindow));
     updateWindowTitle(mainWindow);
@@ -130,7 +135,7 @@ function showInputContextMenu(e, props, mainWindow) {
         }
     ]);
 
-    menu.popup(mainWindow);
+    menu.popup({window: mainWindow});
 }
 
 function startAutoUpdater() {
@@ -163,10 +168,14 @@ function startAutoUpdater() {
     });
 }
 
+function openExternal(url) {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+}
+
 function handleRedirect(e, url, mainWindow) {
 	if(url !== mainWindow.webContents.getURL()) {
         e.preventDefault();
-        shell.openExternal(url);
+        openExternal(url);
     }
 }
 
@@ -329,7 +338,7 @@ app.on('ready', () => {
     else createWindow();
     pendingProjects.length = 0;
     startAutoUpdater();
-    autoUpdater.checkForUpdates();
+    if (app.isPackaged) autoUpdater.checkForUpdates().catch(() => {});
 });
 
 ipcMain.on('renderer-ready', (event) => {
@@ -418,3 +427,26 @@ ipcMain.on('project-modified', (e, data) => {
 ipcMain.on('quit', (e, data) => {
     quit(BrowserWindow.fromWebContents(e.sender));
 });
+
+// Only project windows may request native dialogs, always parented to their own window.
+for (const [channel, show] of Object.entries({
+    'dialog-open': (win, options) => dialog.showOpenDialogSync(win, options),
+    'dialog-save': (win, options) => dialog.showSaveDialogSync(win, options),
+    'dialog-message': (win, options) => dialog.showMessageBoxSync(win, options),
+    'dialog-error': (win, options) => { dialog.showErrorBox(options.title, options.content); return null; }
+})) {
+    ipcMain.on(channel, (event, options) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win || !windows.has(win)) {
+            event.returnValue = null;
+            return;
+        }
+        try {
+            event.returnValue = show(win, options);
+        }
+        catch (error) {
+            event.returnValue = null;
+            console.error('Native dialog failed:', error);
+        }
+    });
+}

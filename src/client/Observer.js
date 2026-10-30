@@ -11,6 +11,8 @@ let GLOBAL_EVENT = {
     PACK_EXPORTER_CHANGED        : "PACK_EXPORTER_CHANGED",
     PACK_COMPLETE                : "PACK_COMPLETE",
     START_EXPORT                 : "START_EXPORT",
+    START_EXPORT_PREVIEW         : "START_EXPORT_PREVIEW",
+    SHOW_EXPORT_PREVIEW          : "SHOW_EXPORT_PREVIEW",
     SHOW_MESSAGE                 : "SHOW_MESSAGE",
     SHOW_SHADER                  : "SHOW_SHADER",
     HIDE_SHADER                  : "HIDE_SHADER",

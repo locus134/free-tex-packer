@@ -5,6 +5,7 @@ import MainHeader from './MainHeader.jsx';
 import PackProperties from './PackProperties.jsx';
 import PackResults from './PackResults.jsx';
 import MessageBox from './MessageBox.jsx';
+import ExportPreview from './ExportPreview.jsx';
 import ProcessingShader from './ProcessingShader.jsx';
 import OldBrowserBlocker from './OldBrowserBlocker.jsx';
 import About from './About.jsx';
@@ -28,8 +29,10 @@ class MainLayout extends React.Component {
         };
 
         this.closeMessage = this.closeMessage.bind(this);
+        this.closeExportPreview = () => this.setState({exportPreview: null});
         
         Observer.on(GLOBAL_EVENT.SHOW_MESSAGE, this.showMessage, this);
+        Observer.on(GLOBAL_EVENT.SHOW_EXPORT_PREVIEW, this.showExportPreview, this);
         Observer.on(GLOBAL_EVENT.SHOW_SHADER, this.showShader, this);
         Observer.on(GLOBAL_EVENT.HIDE_SHADER, this.hideShader, this);
         Observer.on(GLOBAL_EVENT.SHOW_ABOUT, this.showAbout, this);
@@ -40,6 +43,10 @@ class MainLayout extends React.Component {
         Observer.on(GLOBAL_EVENT.HIDE_UPDATER, this.hideUpdater, this);
         Observer.on(GLOBAL_EVENT.SHOW_SHEET_SPLITTER, this.showSheetSplitter, this);
         Observer.on(GLOBAL_EVENT.HIDE_SHEET_SPLITTER, this.hideSheetSplitter, this);
+    }
+
+    showExportPreview(files) {
+        this.setState({exportPreview: files});
     }
 
     onUpdateAvailable(info) {
@@ -110,6 +117,7 @@ class MainLayout extends React.Component {
                     <PackProperties/>
                     <PackResults/>
                     <OldBrowserBlocker/>
+                    {this.state.exportPreview ? <ExportPreview files={this.state.exportPreview} onClose={this.closeExportPreview}/> : null}
                     {about}
                     {editCustomExporter}
                     {sheetSplitter}

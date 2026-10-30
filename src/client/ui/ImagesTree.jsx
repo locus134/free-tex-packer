@@ -9,7 +9,7 @@ class ImagesTree extends React.Component {
 
     render() {
         return (
-            <TreePart data={this.props.data} />
+            <TreePart data={this.props.data} reveal={this.props.reveal} />
         );
     }
 }
@@ -34,8 +34,8 @@ class TreePart extends React.Component {
                     if(item.isFolder) {
 
                         return (
-                            <TreeView key={"tree-folder-" + key} data={item}>
-                                <TreePart data={item}/>
+                            <TreeView key={"tree-folder-" + key} data={item} reveal={this.props.reveal}>
+                                <TreePart data={item} reveal={this.props.reveal}/>
                             </TreeView>
                         );
                     }
@@ -72,7 +72,7 @@ class TreeItem extends React.Component {
 
     render() {
         return (
-            <div className={"image-list-item" + (this.props.data.img.selected ? " back-400" : "") + (this.props.data.img.current ? " image-list-item-current" : "")} onClick={this.onSelect} >
+            <div data-image-path={this.props.data.path} className={"image-list-item" + (this.props.data.img.selected ? " back-400" : "") + (this.props.data.img.current ? " image-list-item-current" : "")} onClick={this.onSelect} >
                 <div className="image-list-image-container">
                     <img src={this.props.data.img.src} className="image-list-image" />
                 </div>
@@ -95,6 +95,13 @@ class TreeView extends React.Component {
         this.state = {
             collapsed: this.props.defaultCollapsed
         };
+    }
+
+    componentWillReceiveProps(nextProps) {
+        if (nextProps.reveal && nextProps.reveal !== this.props.reveal &&
+            nextProps.reveal.path.startsWith(nextProps.data.path + "/")) {
+            this.setState({collapsed: false});
+        }
     }
 
     handleCollapse(e) {

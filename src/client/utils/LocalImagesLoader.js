@@ -1,3 +1,5 @@
+import FileSystem from 'platform/FileSystem';
+
 class LocalImagesLoader {
 
     constructor() {
@@ -21,6 +23,13 @@ class LocalImagesLoader {
         this.onProgress = onProgress;
         this.onEnd = onEnd;
 
+        if (PLATFORM === "electron") {
+            this.pathMode = FileSystem.getImportPathMode();
+            if (!this.pathMode) {
+                if (this.onEnd) this.onEnd({});
+                return;
+            }
+        }
         this.loadNext();
     }
 
@@ -39,8 +48,9 @@ class LocalImagesLoader {
             let path = "";
             let name = "";
 
-            if (item.path) {
-                path = item.path.split("\\").join("/");
+            const filePath = PLATFORM === "electron" ? FileSystem.getFilePath(item) : item.path;
+            if (filePath) {
+                path = filePath.split("\\").join("/");
                 name = path.split("/").pop();
             }
             else {
@@ -51,7 +61,8 @@ class LocalImagesLoader {
             img.fsPath = {
                 name: name,
                 path: path,
-                folder: ""
+                folder: "",
+                pathMode: this.pathMode
             };
 
             let reader = new FileReader();

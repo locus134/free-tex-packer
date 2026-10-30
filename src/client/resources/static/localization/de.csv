@@ -143,3 +143,7 @@ RELATIVE_PATH;Relative path
 EXPORT_PATH_MODE;Export path mode
 SAVE_PROJECT_FIRST;Save the project first to use paths relative to the .ftpp file.
 PROJECT_SAVE_ERROR;Could not save project
+IMPORT_PATH_MODE;Import path mode
+
+PREVIEW;Preview
+EXPORT_PREVIEW;Export configuration preview
