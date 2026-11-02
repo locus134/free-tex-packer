@@ -426,3 +426,29 @@ test('second-instance forwards Windows and Linux project arguments into new wind
     view.onKeyDown({...event, key: 'Escape'});
     assert.equal(closed, true);
 });
+
+ test('empty custom templates show a clear instruction before preview or export starts', () => {
+    const events = [];
+    const APP = renderer('src/client/APP.js', {Observer: {emit: (...args) => events.push(args)}, GLOBAL_EVENT: {SHOW_MESSAGE: 'message'}, I18: {f: key => key}, setTimeout: () => {throw new Error('Export must not start');}});
+    const app = Object.create(APP.prototype);
+    app.packResult = [{}];
+    for (const preview of [true, false]) {
+        for (const content of [undefined, null, '', '  \n\t', {}]) {
+            events.length = 0;
+            app.packOptions = {exporter: {type: 'custom', content}};
+            app.startExport(preview);
+            assert.deepEqual(events, [['message', 'CUSTOM_TEMPLATE_EMPTY']]);
+        }
+    }
+});
+ test('loading project options refreshes the custom template edit button visibility', () => {
+    const PackProperties = renderer('src/client/ui/PackProperties.jsx', {React: {Component: class {}}, ReactDOM: {findDOMNode: ref => ref}, getExporterByType: type => ({type})});
+    const view = Object.create(PackProperties.prototype);
+    const refs = {};
+    view.refs = new Proxy(refs, {get: (target, key) => target[key] || (target[key] = {value: '', style: {visibility: 'hidden'}})});
+    for (const exporter of ['custom', 'JsonHash', 'custom']) {
+        view.packOptions = {exporter};
+        view.refreshPackOptions();
+        assert.equal(view.refs.editCustomFormat.style.visibility, exporter === 'custom' ? 'visible' : 'hidden');
+    }
+});

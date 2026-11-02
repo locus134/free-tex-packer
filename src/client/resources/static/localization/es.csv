@@ -148,3 +148,4 @@ IMPORT_PATH_MODE;Import path mode
 
 PREVIEW;Preview
 EXPORT_PREVIEW;Export configuration preview
+CUSTOM_TEMPLATE_EMPTY;La plantilla personalizada está vacía. Utilice el botón a la derecha de Format para rellenarla y guardarla antes de previsualizar o exportar.

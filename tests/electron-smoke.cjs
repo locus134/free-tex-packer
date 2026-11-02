@@ -245,9 +245,33 @@ app.once('ready', async () => {
         await dropped.webContents.executeJavaScript('document.querySelector(".export-preview-window").dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", bubbles: true}));');
         assert.equal(await dropped.webContents.executeJavaScript('!!document.querySelector(".export-preview-window")'), false);
 
+
+        const customProject = path.join(temp, 'custom.ftpp');
+        fs.writeFileSync(customProject, JSON.stringify({images: [{name: 'icon.png', path: 'assets/icon.png', folder: ''}], folders: [], packOptions: {exporter: 'custom', textureName: 'custom', savePath: 'output/custom', savePathMode: 'relative'}}));
+        app.emit('open-file', {preventDefault() {}}, customProject);
+        const custom = windows.at(-1);
+        await until(async () => custom.getTitle().startsWith('custom.ftpp') && await custom.webContents.executeJavaScript('document.querySelectorAll("[data-image-path]").length === 1 && document.querySelectorAll("canvas").length > 0 && !document.body.innerText.includes("Please, wait...")'), 'custom project loaded');
+        assert.equal(await custom.webContents.executeJavaScript('getComputedStyle(document.querySelector(".edit-btn")).visibility'), 'visible');
+        for (const caption of ['Preview', 'Export']) {
+            await custom.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.btn')).find(button => button.textContent.trim() === ${JSON.stringify(caption)}).click()`);
+            await until(() => custom.webContents.executeJavaScript('!!document.querySelector(".message-box-content")'), 'empty custom template message');
+            assert.ok((await custom.webContents.executeJavaScript('document.querySelector(".message-box-content").textContent')).includes('The custom template is empty.'));
+            await custom.webContents.executeJavaScript('document.querySelector(".message-box-buttons .btn").click()');
+        }
+        assert.equal(fs.existsSync(path.join(temp, 'output/custom')), false);
+        await custom.webContents.executeJavaScript('document.querySelector(".edit-btn").click(); document.querySelector(".edit-custom-exporter-data").value = "atlas={{config.imageName}} width={{config.imageWidth}}"; document.querySelector(".edit-custom-exporter-content input[type=text]").value = "txt"; document.querySelector(".edit-custom-exporter-controls .btn").click();');
+        await custom.webContents.executeJavaScript('Array.from(document.querySelectorAll(".btn")).find(button => button.textContent.trim() === "Preview").click()');
+        await until(() => custom.webContents.executeJavaScript('!!document.querySelector(".export-preview-content")'), 'filled custom template preview');
+        const customContent = await custom.webContents.executeJavaScript('document.querySelector(".export-preview-content").textContent');
+        assert.ok(customContent.startsWith('atlas=custom width='));
+        await custom.webContents.executeJavaScript('document.querySelector(".export-preview-close").click()');
+        custom.webContents.send('action-export');
+        await until(() => fs.existsSync(path.join(temp, 'output/custom/custom.txt')), 'filled custom template export');
+        assert.equal(fs.readFileSync(path.join(temp, 'output/custom/custom.txt'), 'utf8'), customContent);
+
         first.close();
         assert.equal(second.isDestroyed(), false);
-        console.log('PASS: imports and drops, preview reveal, two windows, export/save-as, exact configuration preview, resize and two-axis scrolling');
+        console.log('PASS: imports and drops, preview reveal, two windows, export/save-as, exact configuration preview, resize, empty custom template guidance and editor visibility');
         app.exit(0);
     }
     catch (error) {

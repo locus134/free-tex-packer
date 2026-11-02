@@ -148,3 +148,4 @@ IMPORT_PATH_MODE;导入路径方式
 
 PREVIEW;预览
 EXPORT_PREVIEW;导出配置预览
+CUSTOM_TEMPLATE_EMPTY;自定义模板为空。请点击 Format 右侧的编辑按钮，填写并保存模板后再预览或导出。

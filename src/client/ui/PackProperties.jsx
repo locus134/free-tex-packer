@@ -186,6 +186,7 @@ class PackProperties extends React.Component {
         ReactDOM.findDOMNode(this.refs.detectIdentical).checked = this.packOptions.detectIdentical;
         ReactDOM.findDOMNode(this.refs.packer).value = this.packOptions.packer;
         ReactDOM.findDOMNode(this.refs.packerMethod).value = this.packOptions.packerMethod;
+        this.updateEditCustomTemplateButton();
     }
 
     getPackOptions() {

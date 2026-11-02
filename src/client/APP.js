@@ -90,6 +90,12 @@ class APP {
             return;
         }
 
+        const exporter = this.packOptions.exporter;
+        if (exporter.type === "custom" && (typeof exporter.content !== "string" || !exporter.content.trim())) {
+            Observer.emit(GLOBAL_EVENT.SHOW_MESSAGE, I18.f("CUSTOM_TEMPLATE_EMPTY"));
+            return;
+        }
+
         if (this.packOptions.tinify && !this.packOptions.tinifyKey) {
             Observer.emit(GLOBAL_EVENT.SHOW_MESSAGE, I18.f("NO_TINIFY_KEY_ERROR"));
             return;

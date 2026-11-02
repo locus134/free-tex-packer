@@ -147,3 +147,4 @@ IMPORT_PATH_MODE;Import path mode
 
 PREVIEW;Preview
 EXPORT_PREVIEW;Export configuration preview
+CUSTOM_TEMPLATE_EMPTY;Die benutzerdefinierte Vorlage ist leer. Bitte über die Schaltfläche rechts neben Format ausfüllen und speichern, bevor Sie eine Vorschau anzeigen oder exportieren.

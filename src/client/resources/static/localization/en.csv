@@ -148,3 +148,4 @@ IMPORT_PATH_MODE;Import path mode
 
 PREVIEW;Preview
 EXPORT_PREVIEW;Export configuration preview
+CUSTOM_TEMPLATE_EMPTY;The custom template is empty. Click the edit button to the right of Format, fill in and save the template, then preview or export.

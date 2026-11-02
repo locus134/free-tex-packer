@@ -1,8 +1,8 @@
 {
   "name": "free-tex-packer",
-  "version": "0.6.10",
+  "version": "0.6.11",
   "description": "Free texture packer",
-  "homepage": "https://github.com/odrick/free-tex-packer",
+  "homepage": "https://github.com/locus134/free-tex-packer",
   "author": "Alexander Norinchak <norinchak@gmail.com>",
   "main": "main.js",
   "engines": {
@@ -58,14 +58,14 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "odrick",
+        "owner": "locus134",
         "repo": "free-tex-packer"
       }
     ]
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/odrick/free-tex-packer.git"
+    "url": "git+https://github.com/locus134/free-tex-packer.git"
   },
   "keywords": [],
   "license": "ISC",

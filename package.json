@@ -1,7 +1,7 @@
 {
   "name": "free-tex-packer",
   "displayName": "Free texture packer",
-  "version": "0.6.10",
+  "version": "0.6.11",
   "description": "Free online texture packer",
   "url": "http://free-tex-packer.com",
   "download": "http://free-tex-packer.com/download",
@@ -62,7 +62,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/odrick/free-tex-packer.git"
+    "url": "git+https://github.com/locus134/free-tex-packer.git"
   },
   "keywords": [
     "texture",
@@ -80,9 +80,9 @@
   "authorEmail": "norinchak@gmail.com",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/odrick/free-tex-packer/issues"
+    "url": "https://github.com/locus134/free-tex-packer/issues"
   },
-  "homepage": "https://github.com/odrick/free-tex-packer",
+  "homepage": "https://github.com/locus134/free-tex-packer",
   "devDependencies": {
     "@babel/core": "^7.6.4",
     "@babel/preset-env": "^7.6.3",

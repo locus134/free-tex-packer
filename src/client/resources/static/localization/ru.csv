@@ -148,3 +148,4 @@ IMPORT_PATH_MODE;Import path mode
 
 PREVIEW;Preview
 EXPORT_PREVIEW;Export configuration preview
+CUSTOM_TEMPLATE_EMPTY;Пользовательский шаблон пуст. Заполните и сохраните его с помощью кнопки справа от Format перед просмотром или экспортом.
